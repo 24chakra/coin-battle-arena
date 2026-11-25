@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group Chat + Coin Battle Arena (Admin Protected)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #3b82f6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 12px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1, h2, h3 { margin-bottom: 8px; }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      border: 1px solid #334155;
+    }
+    .hidden { display: none !important; }
+    input, select, button, textarea {
+      font-size: 15px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: var(--text);
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    button {
+      background: var(--primary);
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    button:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--danger); }
+    .btn-warning { background: var(--warning); color: #000; }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid var(--primary);
+    }
+    .flex { display: flex; gap: 10px; flex-wrap: wrap; }
+    .flex > * { flex: 1; min-width: 120px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab {
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: #334155;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .tab.active { background: var(--primary); }
+    #chatBox {
+      height: 320px;
+      overflow-y: auto;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #334155;
+    }
+    .msg {
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: #1e293b;
+      max-width: 85%;
+    }
+    .msg.own { background: #1e3a8a; margin-left: auto; }
+    .msg .meta { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .room-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-pending { background: #f59e0b; color: #000; }
+    .badge-approved { background: #22c55e; color: #000; }
+    .badge-rejected { background: #ef4444; }
+    .wallet {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      background: #1e293b;
+      border-radius: 12px;
+    }
+    .rps-btn {
+      font-size: 32px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #334155; }
+    th { color: var(--muted); }
+    .alert {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .alert-info { background: #1e3a8a; }
+    .alert-warning { background: #78350f; }
+    .alert-success { background: #14532d; }
+    .alert-danger { background: #7f1d1d; }
+    .admin-only { border: 2px dashed #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ========== LOGIN / REGISTER ========== -->
+    <div id="authScreen">
+      <div class="card" style="max-width:420px;margin:40px auto;">
+        <h1 style="text-align:center;">⚔️ Coin Battle Arena</h1>
+        <p style="text-align:center;color:var(--muted);margin-bottom:20px;">Protected Multi-User Group Chat + RPS Battle</p>
+
+        <div class="tabs">
+          <div class="tab active" data-tab="login">Login</div>
+          <div class="tab" data-tab="register">Register</div>
+        </div>
+
+        <!-- Login -->
+        <div id="loginForm">
+          <input type="text" id="loginName" placeholder="Username" />
+          <input type="password" id="loginPass" placeholder="Password" />
+          <button onclick="doLogin()">Login</button>
+          <p style="font-size:13px;color:var(--muted);margin-top:8px;">
+            Admin login: <b>admin</b> / <b>admin123</b>
+          </p>
+        </div>
+
+        <!-- Register -->
+        <div id="registerForm" class="hidden">
+          <input type="text" id="regName" placeholder="Choose Username (min 3 chars)" />
+          <input type="password" id="regPass" placeholder="Password (min 4 chars)" />
+          <button onclick="doRegister()">Register (Needs Admin Approval)</button>
+          <div class="alert alert-warning" style="margin-top:12px;">
+            ⚠️ New accounts are <b>Pending</b>. Admin must approve before you can join chat or play.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== PENDING SCREEN ========== -->
+    <div id="pendingScreen" class="hidden">
+      <div class="card" style="max-width:500px;margin:60px auto;text-align:center;">
+        <h2>⏳ Account Pending Approval</h2>
+        <p style="margin:16px 0;color:var(--muted);">
+          Hello <b id="pendingName"></b>, your account is waiting for admin approval.<br>
+          You cannot join chat or battles until approved.
+        </p>
+        <button class="btn-outline" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- ========== ADMIN PANEL ========== -->
+    <div id="adminScreen" class="hidden">
+      <div class="status-bar">
+        <div>
+          <strong>👑 Admin Panel</strong>
+          <span style="color:var(--muted);font-size:13px;"> — Approve users before they can play</span>
+        </div>
+        <button class="btn-outline" style="width:auto;" onclick="logout()">Logout</button>
+      </div>
+
+      <div class="card admin-only">
+        <h2>Pending Users</h2>
+        <div id="pendingList"></div>
+      </div>
+
+      <div class="card">
+        <h2>All Users</h2>
+        <div id="allUsersList"></div>
+      </div>
+    </div>
+
+    <!-- ========== MAIN APP ========== -->
+    <div id="mainApp" class="hidden">
+      <div class="status-bar">
+        <div>
+          👤 <b id="currentUserName"></b>
+          <span class="badge badge-approved">Approved</span>
+        </div>
+        <div class="wallet">🪙 <span id="coinBalance">0</span></div>
+        <div class="flex" style="flex:0;">
+          <button class="btn-warning" style="width:auto;" onclick="claimFreeCoins()">+200 Free Coins</button>
+          <button class="btn-outline" style="width:auto;" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="mainTabs">
+        <div class="tab active" data-view="chat">💬 Group Chat</div>
+        <div class="tab" data-view="rooms">🏟️ Battle Rooms</div>
+        <div class="tab" data-view="dashboard">📊 My Dashboard</div>
+      </div>
+
+      <!-- CHAT -->
+      <div id="view-chat" class="card">
+        <h2>Group Chat</h2>
+        <div id="chatBox"></div>
+        <div class="flex">
+          <input type="text" id="chatInput" placeholder="Type message..." onkeydown="if(event.key==='Enter')sendChat()" />
+          <button style="width:auto;" onclick="sendChat()">Send</button>
+        </div>
+        <button class="btn-outline" style="margin-top:8px;" onclick="simulateBot()">🤖 Simulate Bot Player (for testing)</button>
+      </div>
+
+      <!-- ROOMS -->
+      <div id="view-rooms" class="card hidden">
+        <h2>1v1 Battle Arena (Rock-Paper-Scissors)</h2>
+        <div class="alert alert-info">
+          Create a room with Entry Coins. Share the 4-digit code in chat. Winner takes double the entry!
+        </div>
+
+        <div class="card" style="background:#0f172a;">
+          <h3>Create New Room</h3>
+          <div class="flex">
+            <select id="entryFee">
+              <option value="50">50 Coins</option>
+              <option value="100">100 Coins</option>
+              <option value="200">200 Coins</option>
+              <option value="500">500 Coins</option>
+            </select>
+            <button class="btn-success" onclick="createRoom()">Generate Room Code</button>
+          </div>
+        </div>
+
+        <h3 style="margin-top:16px;">Active Rooms</h3>
+        <div id="roomsList"></div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div id="view-dashboard" class="card hidden">
+        <h2>Player Dashboard</h2>
+        <div class="flex" style="margin-bottom:16px;">
+          <div class="card" style="flex:1;text-align:center;">
+            <div style="font-size:13px;color:var(--muted);">Wins</div>
+            <div style="font-size:28px;color:var(--success);" id="statWins">0</div>
+          </div>
+          <div class="card" style="flex:1;text-align:center;">
+            <div style="font-size:13px;color:var(--muted);">Losses</div>
+            <div style="font-size:28px;color:var(--danger);" id="statLosses">0</div>
+          </div>
+          <div class="card" style="flex:1;text-align:center;">
+            <div style="font-size:13px;color:var(--muted);">Total Games</div>
+            <div style="font-size:28px;" id="statTotal">0</div>
+          </div>
+        </div>
+        <h3>Game History</h3>
+        <div id="historyTable"></div>
+      </div>
+    </div>
+
+    <!-- ========== BATTLE MODAL ========== -->
+    <div id="battleModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:100;">
+      <div class="card" style="max-width:420px;width:90%;text-align:center;">
+        <h2>⚔️ Battle Room <span id="battleCode"></span></h2>
+        <p id="battleInfo" style="color:var(--muted);margin:12px 0;"></p>
+        <div id="battleChoices" class="flex" style="justify-content:center;gap:16px;margin:20px 0;">
+          <button class="rps-btn" onclick="makeMove('rock')">✊</button>
+          <button class="rps-btn" onclick="makeMove('paper')">✋</button>
+          <button class="rps-btn" onclick="makeMove('scissors')">✌️</button>
+        </div>
+        <div id="battleResult" class="hidden"></div>
+        <button class="btn-outline" onclick="closeBattle()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== DATA LAYER (localStorage) ====================
+    const STORAGE_KEY = 'coinBattleApp_v2';
+
+    function loadData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        // Seed admin + empty data
+        const data = {
+          users: {
+            admin: {
+              name: 'admin',
+              pass: 'admin123',
+              coins: 99999,
+              status: 'approved',
+              isAdmin: true,
+              history: [],
+              created: Date.now()
+            }
+          },
+          messages: [],
+          rooms: {},
+          currentUser: null
+        };
+        saveData(data);
+        return data;
+      }
+      return JSON.parse(raw);
+    }
+
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    let data = loadData();
+
+    // ==================== AUTH ====================
+    function doRegister() {
+      const name = document.getElementById('regName').value.trim().toLowerCase();
+      const pass = document.getElementById('regPass').value;
+      if (name.length < 3) return alert('Username at least 3 characters');\n      if (pass.length < 4) return alert('Password at least 4 characters');
+      if (data.users[name]) return alert('Username already exists');
+
+      data.users[name] = {
+        name,
+        pass,
+        coins: 500,          // starting free coins
+        status: 'pending',   // IMPORTANT: needs admin approval
+        isAdmin: false,
+        history: [],
+        created: Date.now()
+      };
+      saveData(data);
+      alert('✅ Registered! Your account is PENDING.\nAdmin must approve before you can play.');
+      document.getElementById('regName').value = '';
+      document.getElementById('regPass').value = '';
+      // Switch to login tab
+      document.querySelectorAll('.tab')[0].click();
+    }
+
+    function doLogin() {
+      const name = document.getElementById('loginName').value.trim().toLowerCase();
+      const pass = document.getElementById('loginPass').value;
+      const user = data.users[name];
+      if (!user || user.pass !== pass) return alert('❌ Wrong username or password');
+
+      data.currentUser = name;
+      saveData(data);
+
+      if (user.isAdmin) {
+        showScreen('admin');
+        renderAdmin();
+      } else if (user.status === 'pending') {
+        document.getElementById('pendingName').textContent = name;
+        showScreen('pending');
+      } else if (user.status === 'rejected') {
+        alert('Your account was rejected by admin.');
+        data.currentUser = null;
+        saveData(data);
+      } else {
+        // approved
+        showScreen('main');
+        renderMain();
+      }
+    }
+
+    function logout() {
+      data.currentUser = null;
+      saveData(data);
+      showScreen('auth');
+    }
+
+    // ==================== SCREENS ====================
+    function showScreen(which) {
+      ['authScreen','pendingScreen','adminScreen','mainApp'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      if (which === 'auth') document.getElementById('authScreen').classList.remove('hidden');
+      if (which === 'pending') document.getElementById('pendingScreen').classList.remove('hidden');
+      if (which === 'admin') document.getElementById('adminScreen').classList.remove('hidden');
+      if (which === 'main') document.getElementById('mainApp').classList.remove('hidden');
+    }
+
+    // ==================== ADMIN ====================
+    function renderAdmin() {
+      const pending = Object.values(data.users).filter(u => u.status === 'pending' && !u.isAdmin);
+      const all = Object.values(data.users).filter(u => !u.isAdmin);
+
+      let html = '';
+      if (pending.length === 0) {
+        html = '<p style="color:var(--muted);">No pending users 🎉</p>';
+      } else {
+        pending.forEach(u => {
+          html += `
+            <div class="room-card flex" style="align-items:center;">
+              <div style="flex:2;">
+                <b>${u.name}</b><br>
+                <small style="color:var(--muted);">Registered: ${new Date(u.created).toLocaleString()}</small>
+              </div>
+              <button class="btn-success" style="width:auto;" onclick="approveUser('${u.name}')">✅ Approve</button>
+              <button class="btn-danger" style="width:auto;" onclick="rejectUser('${u.name}')">❌ Reject</button>
+            </div>`;
+        });
+      }
+      document.getElementById('pendingList').innerHTML = html;
+
+      // All users table
+      let table = `<table><tr><th>User</th><th>Status</th><th>Coins</th><th>Joined</th><th>Action</th></tr>`;
+      all.forEach(u => {
+        const badge = u.status === 'approved' ? 'badge-approved' :
+                      u.status === 'pending' ? 'badge-pending' : 'badge-rejected';
+        table += `<tr>
+          <td>${u.name}</td>
+          <td><span class="badge ${badge}">${u.status}</span></td>
+          <td>🪙 ${u.coins}</td>
+          <td>${new Date(u.created).toLocaleDateString()}</td>
+          <td>
+            ${u.status !== 'approved' ? `<button class="btn-success" style="width:auto;padding:4px 10px;" onclick="approveUser('${u.name}')">Approve</button>` : ''}
+            ${u.status !== 'rejected' ? `<button class="btn-danger" style="width:auto;padding:4px 10px;" onclick="rejectUser('${u.name}')">Reject</button>` : ''}
+          </td>
+        </tr>`;
+      });
+      table += '</table>';
+      document.getElementById('allUsersList').innerHTML = table || '<p>No users yet</p>';
+    }
+
+    function approveUser(name) {
+      if (!data.users[name]) return;
+      data.users[name].status = 'approved';
+      saveData(data);
+      renderAdmin();
+      addSystemMessage(`✅ Admin approved user: ${name}`);
+    }
+
+    function rejectUser(name) {
+      if (!data.users[name]) return;
+      data.users[name].status = 'rejected';
+      saveData(data);
+      renderAdmin();
+      addSystemMessage(`❌ Admin rejected user: ${name}`);
+    }
+
+    // ==================== MAIN APP ====================
+    function renderMain() {
+      const user = data.users[data.currentUser];
+      document.getElementById('currentUserName').textContent = user.name;
+      document.getElementById('coinBalance').textContent = user.coins;
+      renderChat();
+      renderRooms();
+      renderDashboard();
+    }
+
+    // ----- CHAT -----
+    function renderChat() {
+      const box = document.getElementById('chatBox');
+      box.innerHTML = '';
+      data.messages.slice(-80).forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'msg' + (m.user === data.currentUser ? ' own' : '');
+        div.innerHTML = `<div class="meta">${m.user} • ${new Date(m.time).toLocaleTimeString()}</div>${escapeHtml(m.text)}`;
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      data.messages.push({
+        user: data.currentUser,
+        text,
+        time: Date.now()
+      });
+      saveData(data);
+      input.value = '';
+      renderChat();
+    }
+
+    function addSystemMessage(text) {
+      data.messages.push({
+        user: 'SYSTEM',
+        text,
+        time: Date.now()
+      });
+      saveData(data);
+      if (document.getElementById('mainApp') && !document.getElementById('mainApp').classList.contains('hidden')) {
+        renderChat();
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');
+    }
+
+    // ----- ROOMS & BATTLE -----
+    function createRoom() {
+      const fee = parseInt(document.getElementById('entryFee').value);
+      const user = data.users[data.currentUser];
+      if (user.coins < fee) return alert('Not enough coins!');
+
+      // Generate 4-digit code
+      let code;
+      do {
+        code = String(Math.floor(1000 + Math.random() * 9000));
+      } while (data.rooms[code]);
+
+      data.rooms[code] = {
+        code,
+        creator: data.currentUser,
+        entry: fee,
+        players: { [data.currentUser]: null }, // move later
+        status: 'waiting', // waiting | playing | finished
+        created: Date.now()
+      };
+      // Deduct entry from creator
+      user.coins -= fee;
+      saveData(data);
+
+      addSystemMessage(`🏟️ ${data.currentUser} created Room ${code} (Entry: ${fee} coins). Click code to join!`);
+      renderMain();
+      alert(`Room created!\nCode: ${code}\nShare it in chat.`);
+    }
+
+    function renderRooms() {
+      const list = document.getElementById('roomsList');
+      const rooms = Object.values(data.rooms).filter(r => r.status !== 'finished');
+      if (rooms.length === 0) {
+        list.innerHTML = '<p style="color:var(--muted);">No active rooms. Create one!</p>';
+        return;
+      }
+      list.innerHTML = rooms.map(r => {
+        const players = Object.keys(r.players).join(', ');
+        const canJoin = r.status === 'waiting' && !r.players[data.currentUser] && Object.keys(r.players).length < 2;
+        return `
+          <div class="room-card">
+            <div class="flex" style="align-items:center;">
+              <div style="flex:2;">
+                <b>Room ${r.code}</b> • Entry: 🪙 ${r.entry}<br>
+                <small>Creator: ${r.creator} | Players: ${players}</small>
+              </div>
+              ${canJoin ? `<button class="btn-success" style="width:auto;" onclick="joinRoom('${r.code}')">Join</button>` : ''}
+              ${r.players[data.currentUser] !== undefined ? `<button style="width:auto;" onclick="openBattle('${r.code}')">Enter Battle</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function joinRoom(code) {
+      const room = data.rooms[code];
+      if (!room || room.status !== 'waiting') return alert('Room not available');
+      if (Object.keys(room.players).length >= 2) return alert('Room full');
+      const user = data.users[data.currentUser];
+      if (user.coins < room.entry) return alert('Not enough coins');
+
+      user.coins -= room.entry;
+      room.players[data.currentUser] = null;
+      if (Object.keys(room.players).length === 2) {
+        room.status = 'playing';
+      }
+      saveData(data);
+      addSystemMessage(`⚔️ ${data.currentUser} joined Room ${code}`);
+      renderMain();
+      openBattle(code);
+    }
+
+    let currentBattleCode = null;
+
+    function openBattle(code) {
+      currentBattleCode = code;
+      const room = data.rooms[code];
+      document.getElementById('battleCode').textContent = code;
+      document.getElementById('battleInfo').textContent = `Entry: ${room.entry} coins each • Winner takes ${room.entry * 2}`;
+      document.getElementById('battleChoices').classList.remove('hidden');
+      document.getElementById('battleResult').classList.add('hidden');
+      document.getElementById('battleModal').classList.remove('hidden');
+
+      // If already moved
+      if (room.players[data.currentUser]) {
+        document.getElementById('battleChoices').classList.add('hidden');
+        document.getElementById('battleResult').classList.remove('hidden');
+        document.getElementById('battleResult').innerHTML = `<p>You chose: <b>${room.players[data.currentUser]}</b><br>Waiting for opponent...</p>`;
+        checkBattleResult(code);
+      }
+    }
+
+    function makeMove(choice) {
+      const room = data.rooms[currentBattleCode];
+      if (!room || room.players[data.currentUser]) return;
+      room.players[data.currentUser] = choice;
+      saveData(data);
+      document.getElementById('battleChoices').classList.add('hidden');
+      document.getElementById('battleResult').classList.remove('hidden');
+      document.getElementById('battleResult').innerHTML = `<p>You chose: <b>${choice}</b><br>Waiting for opponent...</p>`;
+      checkBattleResult(currentBattleCode);
+    }
+
+    function checkBattleResult(code) {
+      const room = data.rooms[code];
+      const players = Object.keys(room.players);
+      if (players.length < 2) return;
+      const [p1, p2] = players;
+      const m1 = room.players[p1];
+      const m2 = room.players[p2];
+      if (!m1 || !m2) return; // still waiting
+
+      // Both moved → decide winner
+      let winner = null;
+      if (m1 === m2) {
+        // draw → refund both
+        data.users[p1].coins += room.entry;
+        data.users[p2].coins += room.entry;
+        addHistory(p1, 'draw', room.entry, code);
+        addHistory(p2, 'draw', room.entry, code);
+        room.status = 'finished';
+        saveData(data);
+        showBattleResult(code, `🤝 Draw! Both get ${room.entry} coins back.`, null);
+        return;
+      }
+      const wins = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+      if (wins[m1] === m2) winner = p1;
+      else winner = p2;
+
+      const pot = room.entry * 2;
+      data.users[winner].coins += pot;
+      addHistory(winner, 'win', pot, code);
+      addHistory(winner === p1 ? p2 : p1, 'loss', room.entry, code);
+      room.status = 'finished';
+      saveData(data);
+
+      showBattleResult(code, `🏆 Winner: <b>${winner}</b> (+${pot} coins)`, winner);
+      addSystemMessage(`🏆 Room ${code}: ${winner} won against ${winner === p1 ? p2 : p1}!`);
+    }
+
+    function showBattleResult(code, msg, winner) {
+      const el = document.getElementById('battleResult');
+      el.classList.remove('hidden');
+      el.innerHTML = `<div class="alert ${winner === data.currentUser ? 'alert-success' : 'alert-info'}">${msg}</div>`;
+      if (document.getElementById('mainApp') && !document.getElementById('mainApp').classList.contains('hidden')) {
+        renderMain();
+      }
+    }
+
+    function closeBattle() {
+      document.getElementById('battleModal').classList.add('hidden');
+      currentBattleCode = null;
+      renderRooms();
+    }
+
+    function addHistory(username, result, amount, roomCode) {
+      data.users[username].history.unshift({
+        result,
+        amount,
+        room: roomCode,
+        time: Date.now()
+      });
+      // keep last 30
+      data.users[username].history = data.users[username].history.slice(0, 30);
+    }
+
+    // ----- DASHBOARD -----
+    function renderDashboard() {
+      const user = data.users[data.currentUser];
+      const wins = user.history.filter(h => h.result === 'win').length;
+      const losses = user.history.filter(h => h.result === 'loss').length;
+      document.getElementById('statWins').textContent = wins;
+      document.getElementById('statLosses').textContent = losses;
+      document.getElementById('statTotal').textContent = user.history.length;
+
+      const table = document.getElementById('historyTable');
+      if (user.history.length === 0) {
+        table.innerHTML = '<p style="color:var(--muted);">No games yet</p>';
+        return;
+      }
+      table.innerHTML = `<table>
+        <tr><th>Result</th><th>Coins</th><th>Room</th><th>Time</th></tr>
+        ${user.history.map(h => `
+          <tr>
+            <td><span class="badge ${h.result==='win'?'badge-approved':h.result==='loss'?'badge-rejected':'badge-pending'}">${h.result}</span></td>
+            <td>${h.result==='win'?'+':h.result==='loss'?'-':''}${h.amount}</td>
+            <td>${h.room}</td>
+            <td>${new Date(h.time).toLocaleString()}</td>
+          </tr>`).join('')}
+      </table>`;
+    }
+
+    function claimFreeCoins() {
+      const user = data.users[data.currentUser];
+      user.coins += 200;
+      saveData(data);
+      renderMain();
+      alert('+200 Free Coins added!');
+    }
+
+    // ----- BOT SIMULATOR (for testing alone) -----
+    function simulateBot() {
+      const botName = 'bot_' + Math.floor(Math.random()*900+100);
+      // Create bot if not exists
+      if (!data.users[botName]) {
+        data.users[botName] = {
+          name: botName,
+          pass: 'bot',
+          coins: 2000,
+          status: 'approved',
+          isAdmin: false,
+          history: [],
+          created: Date.now()
+        };
+      }
+      // Bot sends a message
+      data.messages.push({
+        user: botName,
+        text: `Hi everyone! I'm ${botName}. Looking for a battle ⚔️`,
+        time: Date.now()
+      });
+
+      // If there is a waiting room created by current user, bot joins it
+      const waiting = Object.values(data.rooms).find(r =>
+        r.status === 'waiting' &&
+        r.creator === data.currentUser &&
+        !r.players[botName]
+      );
+      if (waiting) {
+        data.users[botName].coins -= waiting.entry;
+        waiting.players[botName] = null;
+        waiting.status = 'playing';
+        // Bot makes a random move after short delay
+        setTimeout(() => {
+          const moves = ['rock','paper','scissors'];
+          waiting.players[botName] = moves[Math.floor(Math.random()*3)];
+          saveData(data);
+          checkBattleResult(waiting.code);
+          if (currentBattleCode === waiting.code) {
+            openBattle(waiting.code);
+          }
+          renderMain();
+        }, 1200);
+        addSystemMessage(`🤖 ${botName} joined your Room ${waiting.code}`);
+      }
+      saveData(data);
+      renderChat();
+      renderRooms();
+      alert(`Bot "${botName}" added to chat${waiting ? ' and joined your room!' : ''}`);
+    }
+
+    // ==================== UI HELPERS ====================
+    // Auth tabs
+    document.querySelectorAll('#authScreen .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('#authScreen .tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const isLogin = tab.dataset.tab === 'login';
+        document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+        document.getElementById('registerForm').classList.toggle('hidden', isLogin);
+      });
+    });
+
+    // Main tabs
+    document.querySelectorAll('#mainTabs .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('#mainTabs .tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['chat','rooms','dashboard'].forEach(v => {
+          document.getElementById('view-' + v).classList.toggle('hidden', v !== tab.dataset.view);
+        });
+      });
+    });
+
+    // Auto-refresh every 2s (simple multi-tab sync)
+    setInterval(() => {
+      data = loadData();
+      if (data.currentUser) {
+        const user = data.users[data.currentUser];
+        if (!user) { logout(); return; }
+        if (user.isAdmin && !document.getElementById('adminScreen').classList.contains('hidden')) {
+          renderAdmin();
+        } else if (user.status === 'approved' && !document.getElementById('mainApp').classList.contains('hidden')) {
+          document.getElementById('coinBalance').textContent = user.coins;
+          renderChat();
+          renderRooms();
+        }
+      }
+    }, 2000);
+
+    // Init
+    if (data.currentUser) {
+      const user = data.users[data.currentUser];
+      if (user) {
+        if (user.isAdmin) { showScreen('admin'); renderAdmin(); }
+        else if (user.status === 'pending') {
+          document.getElementById('pendingName').textContent = user.name;
+          showScreen('pending');
+        } else if (user.status === 'approved') {
+          showScreen('main'); renderMain();
+        } else {
+          logout();
+        }
+      } else {
+        logout();
+      }
+    } else {
+      showScreen('auth');
+    }
+  </script>
+</body>
+</html>
